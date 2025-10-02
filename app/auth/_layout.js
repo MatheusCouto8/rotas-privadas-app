@@ -19,7 +19,7 @@ export default function AuthLayout() {
           title: 'Login',
           headerShown: false,
         }}
-      />
+      /> 
       <Stack.Screen
         name="register"
         options={{
