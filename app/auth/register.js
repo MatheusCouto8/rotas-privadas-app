@@ -6,23 +6,31 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRouter } from 'expo-router';
 
-export default function Register() {
+export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { signUp } = useAuth();
   const router = useRouter();
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+      Alert.alert('Erro', 'Preencha todos os campos');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres');
       return;
     }
 
@@ -31,78 +39,107 @@ export default function Register() {
       return;
     }
 
-    setLoading(true);
-    const success = await register(name, email, password);
-    setLoading(false);
+    // Validação básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Erro', 'Email inválido');
+      return;
+    }
 
-    if (success) {
-      router.replace('/tabs');
-    } else {
-      Alert.alert('Erro', 'Não foi possível criar a conta');
+    setLoading(true);
+    try {
+      const result = await signUp(name, email, password);
+
+      if (result.success) {
+        Alert.alert('Sucesso', 'Conta criada com sucesso!', [
+          { text: 'OK' }
+        ]);
+        // O AuthContext já redireciona automaticamente
+      } else {
+        Alert.alert('Erro', result.message || 'Falha ao criar conta');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao criar conta');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Criar Conta</Text>
-      <Text style={styles.subtitle}>Preencha os dados para cadastrar-se</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Text style={styles.emoji}>📝</Text>
+          <Text style={styles.title}>Criar Conta</Text>
+          <Text style={styles.subtitle}>Preencha os dados para se cadastrar</Text>
 
-      <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nome completo"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Nome completo"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            editable={!loading}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="E-mail"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="E-mail"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            editable={!loading}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Senha"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="password"
+            editable={!loading}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Confirmar senha"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Confirmar senha"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            editable={!loading}
+          />
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Cadastrar</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Cadastrar</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.push('/auth/login')}
-        >
-          <Text style={styles.linkText}>
-            Já tem uma conta? Faça login
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            disabled={loading}
+          >
+            <Text style={styles.backButtonText}>Voltar para login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -110,8 +147,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
+    padding: 20,
+  },
+  emoji: {
+    fontSize: 60,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   title: {
     fontSize: 32,
@@ -126,36 +174,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 40,
   },
-  form: {
-    width: '100%',
-  },
   input: {
     backgroundColor: '#fff',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
     borderRadius: 8,
+    padding: 15,
     marginBottom: 15,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
-    fontSize: 16,
   },
   button: {
     backgroundColor: '#007AFF',
-    paddingVertical: 15,
     borderRadius: 8,
-    marginBottom: 20,
+    padding: 15,
     alignItems: 'center',
+    marginTop: 10,
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#B0B0B0',
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  linkButton: {
+  backButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    padding: 15,
     alignItems: 'center',
+    marginTop: 10,
+    minHeight: 50,
+    justifyContent: 'center',
   },
-  linkText: {
+  backButtonText: {
     color: '#007AFF',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
