@@ -6,41 +6,49 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { Link } from 'expo-router';
 
-export default function Login() {
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const router = useRouter();
+  const { signIn } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
+      Alert.alert('Erro', 'Preencha todos os campos');
       return;
     }
 
     setLoading(true);
-    const success = await login(email, password);
-    setLoading(false);
-
-    if (success) {
-      router.replace('/tabs');
-    } else {
-      Alert.alert('Erro', 'Credenciais inválidas');
+    try {
+      const result = await signIn(email, password);
+      
+      if (!result.success) {
+        Alert.alert('Erro', result.message || 'Falha ao fazer login');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao fazer login');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Bem-vindo!</Text>
-      <Text style={styles.subtitle}>Faça login para continuar</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.content}>
+        <Text style={styles.emoji}>🔐</Text>
+        <Text style={styles.title}>Bem-vindo!</Text>
+        <Text style={styles.subtitle}>Faça login para continuar</Text>
 
-      <View style={styles.form}>
         <TextInput
           style={styles.input}
           placeholder="E-mail"
@@ -48,6 +56,8 @@ export default function Login() {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoComplete="email"
+          editable={!loading}
         />
 
         <TextInput
@@ -56,10 +66,12 @@ export default function Login() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          autoCapitalize='none'
+          editable={!loading}
         />
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
         >
@@ -70,69 +82,20 @@ export default function Login() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.push('/auth/register')}
-        >
-          <Text style={styles.linkText}>
-            Não tem uma conta? Cadastre-se
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.registerContainer}>
+          <Text style={styles.registerText}>Não tem conta? </Text>
+          <Link href="/auth/register" asChild>
+            <TouchableOpacity disabled={loading}>
+              <Text style={styles.registerLink}>Cadastre-se</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
       </View>
-    </View>
+
+      <Text style={styles.infoText}>
+        💡 Dica: Se não tiver conta, crie uma nova!
+      </Text>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  form: {
-    width: '100%',
-  },
-  input: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#007AFF',
-    fontSize: 14,
-  },
-});
